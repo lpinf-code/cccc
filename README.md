@@ -27,8 +27,15 @@ Here are the various options you can pass to this program :
 - `-k <symbol,...>` : A list of symbols to only keep
 - `-s <section,...>` : A list of sections to only keep
 - `-t <type>` : The type that corresponds to the C string unit
-- `-a <id>` : Dumps the ASM string as a function named <id>
+- `-a <id>` : Dumps the ASM string as a function named `id`
 - `-D` : Dump all symbols (like objdump's -D)
+- `-b <id>` : Dumps the input C function as a symbol named `id`
+- `-f` : Append a function definition (for `-b` or `-a`)
+  Renames the symbol as `id_fn` to name the function itself `id`
+- `--args <args>` : The arguments of the function(s),
+  with the parentheses (for `-b` and/or `-f`)
+- `--returns <type>` : The return type of the function(s)
+  (for `-b` and/or `-f`)
 
 Adding `--` will tell it to stop reading options.
 
