@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+C bytecode retriever
+"""
+
+import sys
+
+from asmc.disassembler import Disassembler 
+from asmc.rfasm import ASMFunctionCompiler
+
+__author__ = "lpinf"
+
+VOPTS = ['-s', '-k', '-t', '-a']
+
+def usage():
+    print(
+        "USAGE:",
+        f"{sys.argv[0]} [options] [--] objfile",
+        sep = '\n\t',
+        file = sys.stderr
+    )
+    print(
+        "\nDESCRIPTION:",
+        "Extracts symbols from binaries and encodes them as C variables.",
+        sep = '\n\t',
+        file = sys.stderr
+    )
+    print(
+        "\nOPTIONS:",
+        "-k <symbol,...>   A list of symbols to only keep",
+        "-s <section,...>  A list of sections to only keep",
+        "-t <type>         The type that corresponds to the C string unit",
+        "-a <id>           Dumps the ASM string as a function named <id>",
+        "-D                Dump all symbols (like objdump's -D)",
+        sep = '\n\t',
+        file = sys.stderr
+    )
+
+def disassemble(args: list[str], opts: dict):
+    symbols = None
+    sections = None
+    if '-k' in opts.keys():
+        symbols = [e.strip() for e in opts['-k'].split(',')]
+    if '-s' in opts.keys():
+        sections = [e.strip() for e in opts['-s'].split(',')]
+    fn = None
+    if (len(args) > 0):
+        fn = args[0]
+    disasm = Disassembler(fn, '-D' in opts.keys())
+    disasm.get_dump()
+    disasm.read_dump()
+    active = []
+    for symbol in disasm.symbols:
+        if sections is not None and symbol.section not in sections:
+            continue
+        if symbols is not None and symbol.real_name not in symbols:
+            continue
+        active.append(symbol)
+    print("\n\n".join(
+        [a.build_str(opts.get('-t', "const char")) for a in active]
+    ))
+
+def raw_asm(args: list[str], opts: dict):
+    symbols = None
+    sections = None
+    if '-k' in opts.keys():
+        symbols = [e.strip() for e in opts['-k'].split(',')]
+    if '-s' in opts.keys():
+        sections = [e.strip() for e in opts['-s'].split(',')]
+    content = ''
+    if (len(args) == 0):
+        content = sys.stdin.read() 
+    else:
+        with open(args[0], 'r') as file:
+            content = file.read()
+            file.close()
+    asmcmp = ASMFunctionCompiler(opts['-a'], content)
+    disasm = Disassembler(asmcmp.filename, '-D' in opts.keys())
+    disasm.get_dump()
+    disasm.read_dump()
+    asmcmp.destroy()
+    active = []
+    for symbol in disasm.symbols:
+        if sections is not None and symbol.section not in sections:
+            continue
+        if symbols is not None and symbol.real_name not in symbols:
+            continue
+        active.append(symbol)
+    print("\n\n".join(
+        [a.build_str(opts.get('-t', "const char")) for a in active]
+    ))
+
+if __name__ == "__main__":
+    literal = False
+    ignore = None
+    args = []
+    opts = {}
+
+    for arg in sys.argv[1:]:
+        if not literal and ignore is not None and arg == '--':
+            literal = True
+        elif ignore is not None:
+            opts[ignore] = arg
+            ignore = None
+        elif not literal and arg in VOPTS:
+            ignore = arg
+        elif not literal and arg.startswith('-'):
+            opts[arg] = True
+        else:
+            args.append(arg)
+    if '-h' in opts.keys():
+        usage()
+    elif '-a' in opts.keys():
+        raw_asm(args, opts)
+    else:
+        disassemble(args, opts)
+
