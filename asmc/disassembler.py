@@ -19,7 +19,7 @@ def random_string(t):
 
 class Symbol:
     ATTRIBUTE = "__attribute__((section(\"%s\")))\n" 
-    DEFINITION = "%s %s[%s] ="
+    DEFINITION = "%s %s[%s] = ("
     TABSIZE = 4
 
     def __init__(self, section: str, name: str, rname: str, hex_bytes: str):
@@ -41,7 +41,7 @@ class Symbol:
         strings = RawStrBuilder(self.bytecode).build()
         for string in strings:
             out += '\n' + (" " * Symbol.TABSIZE) + f"\"{string}\""
-        out += ';'
+        out += '\n);'
         self.string = out
         return out
 
