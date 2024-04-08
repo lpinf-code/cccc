@@ -86,13 +86,13 @@ def disassemble(args: list[str], opts: dict):
 def add_function_def(name: str, opts: dict):
     fncode = (
         opts.get('--returns', 'void')
-        + f' ({name}*)'
+        + f' (*const {name})'
         + opts.get('--args', '()')
-        + ' = (%s' % opts.get('--returns', 'void')
+        + ' = (\n    (%s ' % opts.get('--returns', 'void')
         + '(*)%s)' % opts.get('--args', '()')
-        + f'{name}_fn;'
+        + f'{name}_fn\n);'
     )
-    print(fncode)
+    print('\n' + fncode)
 
 def raw_cmp(args: list[str], opts: dict, asm: bool):
     symbols = None
