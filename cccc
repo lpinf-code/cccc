@@ -7,10 +7,19 @@ import sys
 
 from asmc.disassembler import Disassembler 
 from asmc.rfasm import ASMFunctionCompiler
+from asmc.rfc import CFunctionCompiler
 
 __author__ = "lpinf"
 
-VOPTS = ['-s', '-k', '-t', '-a']
+VOPTS = [
+    '-s',
+    '-k',
+    '-t',
+    '-a',
+    '-b',
+    "--returns",
+    "--args"
+]
 
 def usage():
     print(
@@ -30,11 +39,32 @@ def usage():
         "-k <symbol,...>   A list of symbols to only keep",
         "-s <section,...>  A list of sections to only keep",
         "-t <type>         The type that corresponds to the C string unit",
-        "-a <id>           Dumps the ASM string as a function named <id>",
         "-D                Dump all symbols (like objdump's -D)",
+        "-a <id>           Dumps the ASM string as a symbol named <id>",
+        "-b <id>           Dumps the C string as a symbol named <id>",
+        "-f                Append a function definition (for -b or -a)",
+        "                    Renames the symbol as <id>_fn to name the",
+        "                    function itself <id>",
+        "--args            The arguments of the function(s), with the",
+        "                    parentheses (for -b and/or -f)",
+        "--returns         The return type of the function(s)",
+        "                    (for -b and/or -f)",
         sep = '\n\t',
         file = sys.stderr
     )
+
+def run_symbols(disasm: Disassembler,
+                symbols: list | None, sections: list | None):
+    active = []
+    for symbol in disasm.symbols:
+        if sections is not None and symbol.section not in sections:
+            continue
+        if symbols is not None and symbol.real_name not in symbols:
+            continue
+        active.append(symbol)
+    print("\n\n".join(
+        [a.build_str(opts.get('-t', "const char")) for a in active]
+    ))
 
 def disassemble(args: list[str], opts: dict):
     symbols = None
@@ -49,18 +79,22 @@ def disassemble(args: list[str], opts: dict):
     disasm = Disassembler(fn, '-D' in opts.keys())
     disasm.get_dump()
     disasm.read_dump()
-    active = []
-    for symbol in disasm.symbols:
-        if sections is not None and symbol.section not in sections:
-            continue
-        if symbols is not None and symbol.real_name not in symbols:
-            continue
-        active.append(symbol)
-    print("\n\n".join(
-        [a.build_str(opts.get('-t', "const char")) for a in active]
-    ))
+    run_symbols(disasm, symbols, sections)
+    if '-f' in opts.keys() and symbols is not None and len(symbols) > 0:
+        add_function_def(symbols[0], opts)
 
-def raw_asm(args: list[str], opts: dict):
+def add_function_def(name: str, opts: dict):
+    fncode = (
+        opts.get('--returns', 'void')
+        + f' ({name}*)'
+        + opts.get('--args', '()')
+        + ' = (%s' % opts.get('--returns', 'void')
+        + '(*)%s)' % opts.get('--args', '()')
+        + f'{name}_fn;'
+    )
+    print(fncode)
+
+def raw_cmp(args: list[str], opts: dict, asm: bool):
     symbols = None
     sections = None
     if '-k' in opts.keys():
@@ -74,21 +108,21 @@ def raw_asm(args: list[str], opts: dict):
         with open(args[0], 'r') as file:
             content = file.read()
             file.close()
-    asmcmp = ASMFunctionCompiler(opts['-a'], content)
+    if asm:
+        name = opts['-a']
+        sname = name + ('_fn' * ('-f' in opts.keys()))
+        asmcmp = ASMFunctionCompiler(sname, content)
+    else:
+        name = opts['-b']
+        sname = name + ('_fn' * ('-f' in opts.keys()))
+        asmcmp = CFunctionCompiler(sname, content, opts)
     disasm = Disassembler(asmcmp.filename, '-D' in opts.keys())
     disasm.get_dump()
     disasm.read_dump()
     asmcmp.destroy()
-    active = []
-    for symbol in disasm.symbols:
-        if sections is not None and symbol.section not in sections:
-            continue
-        if symbols is not None and symbol.real_name not in symbols:
-            continue
-        active.append(symbol)
-    print("\n\n".join(
-        [a.build_str(opts.get('-t', "const char")) for a in active]
-    ))
+    run_symbols(disasm, symbols, sections)
+    if '-f' in opts.keys():
+        add_function_def(name, opts)
 
 if __name__ == "__main__":
     literal = False
@@ -111,7 +145,9 @@ if __name__ == "__main__":
     if '-h' in opts.keys():
         usage()
     elif '-a' in opts.keys():
-        raw_asm(args, opts)
+        raw_cmp(args, opts, True)
+    elif '-b' in opts.keys():
+        raw_cmp(args, opts, False)
     else:
         disassemble(args, opts)
 
