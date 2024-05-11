@@ -12,7 +12,9 @@ class ASMFunctionCompiler:
     EXEC = 'gcc'
     ARGS = ['-nostdlib', '-g0', '-O0', '-c']
 
-    def __init__(self, name: str, asm: str):
+    def __init__(self, name: str, asm: str, opt: dict):
+        if '--syntax' in opt:
+            ASMFunctionCompiler.ARGS.append('-masm=' + opt['--syntax'])
         if not name.isidentifier():
             raise TypeError("`name` must be an identifyer.")
         self.asm = asm.replace('"', '\\"').replace("\n","\"\n\"")

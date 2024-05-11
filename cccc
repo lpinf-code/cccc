@@ -18,7 +18,8 @@ VOPTS = [
     '-a',
     '-b',
     "--returns",
-    "--args"
+    "--args",
+    "--syntax"
 ]
 
 def usage():
@@ -49,6 +50,7 @@ def usage():
         "                    parentheses (for -b and/or -f)",
         "--returns <type>  The return type of the function(s)",
         "                    (for -b and/or -f)",
+        "--syntax <intel / att> sets syntax mode for -a",
         sep = '\n\t',
         file = sys.stderr
     )
@@ -111,7 +113,7 @@ def raw_cmp(args: list[str], opts: dict, asm: bool):
     if asm:
         name = opts['-a']
         sname = name + ('_fn' * ('-f' in opts.keys()))
-        asmcmp = ASMFunctionCompiler(sname, content)
+        asmcmp = ASMFunctionCompiler(sname, content, opts)
     else:
         name = opts['-b']
         sname = name + ('_fn' * ('-f' in opts.keys()))
